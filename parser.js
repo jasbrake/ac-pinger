@@ -4,7 +4,7 @@ class Parser {
     this.index = 0
   }
 
-  more () {
+  hasMore () {
     return this.index < this.buffer.length
   }
 
@@ -26,7 +26,7 @@ class Parser {
   readString () {
     const start = this.index
 
-    while (this.more()) {
+    while (this.hasMore()) {
       if (this.buffer.readUIntLE(this.index++, 1) === 0) break
     }
     return this.buffer.toString('utf8', start, this.index - 1)

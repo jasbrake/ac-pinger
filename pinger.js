@@ -1,51 +1,32 @@
-const dgram = require('dgram');
+const dgram = require('dgram')
 const {PongParser} = require('./pong-parser')
 
-const TIMEOUT_MS = 5000
-const STD_MSG = Buffer.from([0x01, ])
+// const TIMEOUT_MS = 5000
+const STD_MSG = Buffer.from([0x01])
+const EXT_MSG = Buffer.from([0x00, 0x01, 0xFF])
 
-class Pinger {
-  constructor (server, port, msg) {
-    this.server = server
-    this.port = port
-    this.client = dgram.createSocket('udp4');
+const sendStandard = async (server, port) => {
+  return new Promise((resolve, reject) => {
+    const client = dgram.createSocket('udp4')
 
-    this.client.on('error', (err) => {
-      console.error(err)
+    client.on('error', (err) => {
+      reject(err)
     })
 
-    this.client.on('message', (message, remote) => {
-      console.log(`Message from ${remote.address}:${remote.port}:`);
-      console.log(message);
-      console.log(message.toString());
-      this.client.close()
-      return new PongParser(message.slice(msg.length))
-    });
+    client.on('message', (message, remote) => {
+      console.log(`Message from ${remote.address}:${remote.port}:`)
+      console.log(message)
+      console.log(message.toString())
+      client.close()
+      const data = new PongParser(message.slice(STD_MSG.length)).parseStandardPong()
+      resolve(data)
+    })
 
-    function _initTimeoutHandler () {
-      setTimeout(() => {
-        try {
-          this.client.close()
-          console.info(`${server}:${port} timed out.`)
-        } catch (e) {
-          if (e.message !== 'Not running')
-            console.error(e)
-        }
-      }, TIMEOUT_MS)
-    }
-
-    function send() {
-      this.client.send(msg, 0, msg.length, port, server, (err) => {
-        if (err) throw err;
-        console.log(`Sent <${msg.toString('hex').match(/.{1,2}/g).join(' ')}> to ${server}:${port}`);
-        _initTimeoutHandler()
-      });
-    }
-  }
-
-  sendStandard() {
-    const msg =
-  }
+    client.send(STD_MSG, 0, STD_MSG.length, port, server, (err) => {
+      if (err) reject(err)
+      console.log(`Sent <${STD_MSG.toString('hex').match(/.{1,2}/g).join(' ')}> to ${server}:${port}`)
+    })
+  })
 }
 
-module.exports = {Pinger}
+module.exports = {sendStandard}
