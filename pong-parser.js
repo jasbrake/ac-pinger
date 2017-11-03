@@ -4,33 +4,77 @@ class PongParser extends Parser {
   constructor (buffer) {
     super(buffer)
     this.data = {}
+    this.debug = {}
   }
 
-  parseStandardPong (buffer) {
-    this.data.protocol = this.readUInt() // 1202
-    this.data.mode = this.readUInt()
-    this.data.playerCount = this.readUInt()
-    this.data.minutesRemaining = this.readUInt()
+  parse () {
+    if (this.buffer[0] === 0) {
+      this.index += 3
+    } else {
+      this.index++
+    }
+    const msgType = this.readInt()
+    switch (msgType) {
+      case 1201:
+        this._parseStandardPong()
+        break
+      case -1:
+        this._parseExtendedPong()
+        break
+      default:
+        throw new Error(`Invalid message type: ${msgType}`)
+    }
+    return this.data
+  }
+
+  _parseStandardPong (buffer) {
+    // this.data.protocol = this.readInt() // 1202
+    this.data.mode = this.readInt()
+    this.data.playerCount = this.readInt()
+    this.data.minutesRemaining = this.readInt()
     this.data.currentMap = this.readString()
     this.data.description = this.readString()
-    this.data.maxClients = this.readUInt()
-    this.data.pongFlags = this.readUInt() // 0?
-
-    return this.data
+    this.data.maxClients = this.readInt()
+    this.debug.flags = this.readInt()
+    this.data.mastermode = this.debug.flags >> 6
+    this.data.password = (this.debug.flags & 1) === 1
   }
 
-  parseExtendedPong (buffer) {
-    this.data.ack = this.readUInt() // should be -1
-    this.data.ack = this.readUInt() // should be 104
-    this._parseExtendedPlayerStats()
+  _parseExtendedPong (buffer) {
+    this.debug.extVersion = this.readInt() // should be 104
+    this.debug.error = this.readInt() // should be 0
+    this.debug.playerStatResponseId = this.readInt() // -10 for cns, -11 for player info
 
-    return this.data
+    if (this.debug.playerStatResponseId === -11) {
+      this._parsePlayer()
+      return
+    }
+    this.data.playerCount = 0
+    while (this.hasMore()) {
+      this.readInt()
+      this.data.playerCount++
+    }
   }
 
-  _parseExtendedPlayerStats () {
-    this.data.error = this.readUInt() // should be 0
-    this.data.playerStatResponseId = this.readUInt() // should be -10
-    this.data.playerCount = this.readUInt()
+  _parsePlayer () {
+    const player = {}
+    player.cn = this.readInt()
+    player.ping = this.readInt()
+    player.name = this.readString()
+    player.team = this.readString()
+    player.frags = this.readInt()
+    player.flags = this.readInt()
+    player.deaths = this.readInt()
+    player.teamkills = this.readInt()
+    player.accuracy = this.readInt()
+    player.health = this.readInt()
+    player.armour = this.readInt()
+    player.gun = this.readInt()
+    player.role = this.readInt()
+    player.state = this.readInt()
+    player.ip = `${this.readUInt()}.${this.readUInt()}.${this.readUInt()}.x`
+
+    this.data.player = player
   }
 }
 

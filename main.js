@@ -1,15 +1,49 @@
-const Pinger = require('./pinger')
-const server = '62.210.131.155'
-const port = 1999 + 1
-// const server = '81.4.107.119'
-// const port = 5501
+const {Pinger} = require('./pinger')
 
-Pinger.sendStandard(server, port)
-  .then(data => console.log(JSON.stringify(data, null, 2)))
-  .catch(e => console.error(e))
+const servers = [
+  {ip: '62.210.131.155', port: 1999},
+  {ip: '62.210.131.155', port: 2999},
+  {ip: '62.210.131.155', port: 3999},
+  {ip: '62.210.131.155', port: 4999},
+  {ip: '81.4.107.119', port: 5500},
+  {ip: '81.4.107.119', port: 5555}
+]
 
-Pinger.sendExtended(server, port)
-  .then(data => console.log(JSON.stringify(data, null, 2)))
-  .catch(e => console.error(e))
+const data = {}
+
+const pinger = new Pinger()
+
+pinger.on('message', (message, remote) => {
+  const remoteKey = `${remote.address}:${remote.port - 1}`
+
+  data[remoteKey] = data[remoteKey] || {}
+
+  Object.keys(message).forEach(key => {
+    if (data[remoteKey][key] !== message[key]) {
+      data[remoteKey][key] = message[key]
+    }
+  })
+})
+
+pinger.on('player', (message, remote) => {
+  const remoteKey = `${remote.address}:${remote.port - 1}`
+
+  data[remoteKey].players = data[remoteKey].players || []
+  data[remoteKey].players.push(message.player)
+})
+
+pinger.on('error', (err) => {
+  console.error(err)
+})
+
+servers.forEach((server) => {
+  pinger.sendStandard(server.ip, server.port)
+  pinger.sendExtended(server.ip, server.port)
+})
+
+setTimeout(() => {
+  console.log(JSON.stringify(data, null, 2))
+  pinger.client.close()
+}, 1000)
 
 module.exports = {Pinger}
