@@ -29,4 +29,28 @@ const sendStandard = async (server, port) => {
   })
 }
 
-module.exports = {sendStandard}
+const sendExtended = async (server, port) => {
+  return new Promise((resolve, reject) => {
+    const client = dgram.createSocket('udp4')
+
+    client.on('error', (err) => {
+      reject(err)
+    })
+
+    client.on('message', (message, remote) => {
+      console.log(`Message from ${remote.address}:${remote.port}:`)
+      console.log(message)
+      console.log(message.toString())
+      client.close()
+      const data = new PongParser(message.slice(EXT_MSG.length)).parseExtendedPong()
+      resolve(data)
+    })
+
+    client.send(EXT_MSG, 0, EXT_MSG.length, port, server, (err) => {
+      if (err) reject(err)
+      console.log(`Sent <${EXT_MSG.toString('hex').match(/.{1,2}/g).join(' ')}> to ${server}:${port}`)
+    })
+  })
+}
+
+module.exports = {sendStandard, sendExtended}
